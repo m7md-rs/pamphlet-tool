@@ -79,7 +79,7 @@ def handle_pad(args: argparse.Namespace):
         if answer.lower() not in ["y", "yes"]:
             return
 
-    pad(args.input_path, args.count)
+    pad(args.input_path, args.needed_padding)
 
 
 def validate_input_file(input_path: Path):
