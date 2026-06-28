@@ -66,7 +66,7 @@ def handle_impose(args: argparse.Namespace):
     validate_input_file(args.input_path)
     args.output_dir.mkdir(exist_ok=True)
 
-    output_path = args.output_dir / "1.pdf"
+    output_path = args.output_dir / "output.pdf"
     impose(args.input_path, output_path)
 
 
