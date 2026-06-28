@@ -11,26 +11,52 @@ A4 = {                  # in points, where 72 points = 1 inch
 }
 
 
-def impose(input_path: Path, output_path: Path):
+def impose(input_path: Path, output_dir: Path, split_sides=False):
+    if not split_sides:
+        impose_aggregate(input_path, output_dir)
+    else:
+        impose_split(input_path, output_dir)
+
+
+def impose_aggregate(input_path: Path, output_dir: Path):
     reader = PdfReader(input_path)
     writer = PdfWriter()
 
     num_pages = len(reader.pages)
-    if num_pages % PAGES_PER_SHEET != 0:
-        needed_padding = PAGES_PER_SHEET - (num_pages % PAGES_PER_SHEET)
-        print(f"[!] Error: The PDF must be a multiple of {PAGES_PER_SHEET}. An extra {needed_padding} pages of padding are needed.", file=sys.stderr)
-        print(f"           Use: pamphlet-tool pad {input_path} {needed_padding}", file=sys.stderr)
-        sys.exit(1)
+    validate_number_of_pages(num_pages, input_path)
 
-    # Guranteed to be a multiple by validate_number_of_pages
-    num_leaves = num_pages // PAGES_PER_SHEET * 2
+    num_leaves = 2 * (num_pages // PAGES_PER_SHEET)
     for leaf_index in range(1, num_leaves + 1):
         leaf = impose_leaf(reader, leaf_index)
         writer.add_page(leaf)
         print(f"[+] Imposed leaf {leaf_index}")
 
+    output_path = output_dir / "output.pdf"
     writer.write(output_path)
     print(f"[*] Finished imposing PDF: {output_path}")
+
+
+def impose_split(input_path: Path, output_dir: Path):
+    reader = PdfReader(input_path)
+    writer_back = PdfWriter()
+    writer_front = PdfWriter()
+
+    num_pages = len(reader.pages)
+    validate_number_of_pages(num_pages, input_path)
+
+    num_leaves = 2 * (num_pages // PAGES_PER_SHEET)
+    for leaf_index in range(1, num_leaves + 1):
+        leaf = impose_leaf(reader, leaf_index)
+        if leaf_index % 2 != 0:
+            writer_back.add_page(leaf)
+        else:
+            writer_front.add_page(leaf)
+        print(f"[+] Imposed leaf {leaf_index}")
+
+    for (writer, filename) in [(writer_back, "output_back.pdf"), (writer_front, "output_front.pdf")]:
+        output_path = output_dir / filename
+        writer.write(output_path)
+        print(f"[*] Finished imposing PDF: {output_path}")
 
 
 def impose_leaf(reader: PdfReader, leaf_index: int) -> PageObject:
@@ -59,3 +85,11 @@ def impose_leaf(reader: PdfReader, leaf_index: int) -> PageObject:
     leaf.merge_page(leaf_right)
 
     return leaf
+
+
+def validate_number_of_pages(num_pages: int, input_path: Path):
+    if num_pages % PAGES_PER_SHEET != 0:
+        needed_padding = PAGES_PER_SHEET - (num_pages % PAGES_PER_SHEET)
+        print(f"[!] Error: The PDF must be a multiple of {PAGES_PER_SHEET}. An extra {needed_padding} pages of padding are needed.", file=sys.stderr)
+        print(f"           Use: pamphlet-tool pad {input_path} {needed_padding}", file=sys.stderr)
+        sys.exit(1)

@@ -27,6 +27,13 @@ def main():
     )
 
     impose.add_argument(
+        "-k", "--split-sides",
+        dest="split_sides",
+        action="store_true",
+        help="Create a seperate PDF for the front & back side"
+    )
+
+    impose.add_argument(
         "-o", "--output",
         dest="output_dir",
         type=Path,
@@ -65,9 +72,7 @@ def main():
 def handle_impose(args: argparse.Namespace):
     validate_input_file(args.input_path)
     args.output_dir.mkdir(exist_ok=True)
-
-    output_path = args.output_dir / "output.pdf"
-    impose(args.input_path, output_path)
+    impose(args.input_path, args.output_dir, split_sides=args.split_sides)
 
 
 def handle_pad(args: argparse.Namespace):
