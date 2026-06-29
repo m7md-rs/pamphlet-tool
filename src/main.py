@@ -27,6 +27,21 @@ def main():
     )
 
     impose.add_argument(
+        "-s", "--signature-size",
+        dest="signature_size",
+        type=int,
+        default=None,
+        help="The number of sheets/booklets per signature (default: no signatures)"
+    )
+
+    impose.add_argument(
+        "-a", "--aggregate",
+        dest="aggregate_signatures",
+        action="store_true",
+        help="If signatures are enabled (see -s), then aggregate all signatures into a single PDF"
+    )
+
+    impose.add_argument(
         "-k", "--split-sides",
         dest="split_sides",
         action="store_true",
@@ -72,7 +87,7 @@ def main():
 def handle_impose(args: argparse.Namespace):
     validate_input_file(args.input_path)
     args.output_dir.mkdir(exist_ok=True)
-    impose(args.input_path, args.output_dir, split_sides=args.split_sides)
+    impose(args.input_path, args.output_dir, args.split_sides, args.signature_size, args.aggregate_signatures)
 
 
 def handle_pad(args: argparse.Namespace):
