@@ -87,6 +87,14 @@ def main():
         help="Skip the confirmation for overwriting the file"
     )
 
+    pad.add_argument(
+        "-o", "--output",
+        dest="output_path",
+        type=Path,
+        default=None,
+        help="Output padded PDF to this path instead of overwriting"
+    )
+
     args = parser.parse_args()
     args.func(args)
 
@@ -104,13 +112,16 @@ def handle_impose(args: argparse.Namespace):
 def handle_pad(args: argparse.Namespace):
     validate_input_file(args.input_path)
 
-    if not args.skip_confirmation:
+    if args.output_path is None and not args.skip_confirmation:
         print(f"This will overwrite the input file: {args.input_path}")
         answer = input("Do you want to continue? [y/N] ")
         if answer.lower() not in ["y", "yes"]:
             return
 
-    pad(args.input_path, args.needed_padding)
+    if args.output_path is None:
+        pad(args.input_path, args.needed_padding, args.input_path)
+    else:
+        pad(args.input_path, args.needed_padding, args.output_path)
 
 
 def validate_input_file(input_path: Path):

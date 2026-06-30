@@ -2,7 +2,7 @@ from pypdf import PdfReader, PdfWriter
 from pathlib import Path
 
 
-def pad(input_path: Path, count: int):
+def pad(input_path: Path, count: int, output_path: Path):
     reader = PdfReader(input_path)
     writer = PdfWriter(reader)
 
@@ -10,5 +10,5 @@ def pad(input_path: Path, count: int):
     for _ in range(count):
         writer.add_blank_page(width=dimensions.width, height=dimensions.height)
 
-    writer.write(input_path)
-    print(f"[*] Padded file with {count} blank pages: {input_path}")
+    writer.write(output_path)
+    print(f"[*] Padded file with {count} blank pages: {output_path}")
