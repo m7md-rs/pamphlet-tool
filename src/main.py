@@ -49,6 +49,13 @@ def main():
     )
 
     impose.add_argument(
+        "-m", "--fold-mark",
+        dest="fold_mark",
+        action="store_true",
+        help="Add a fold mark to each leaf"
+    )
+
+    impose.add_argument(
         "-o", "--output",
         dest="output_dir",
         type=Path,
@@ -87,7 +94,11 @@ def main():
 def handle_impose(args: argparse.Namespace):
     validate_input_file(args.input_path)
     args.output_dir.mkdir(exist_ok=True)
-    impose(args.input_path, args.output_dir, args.split_sides, args.signature_size, args.aggregate_signatures)
+    impose(
+        args.input_path, args.output_dir, 
+        args.split_sides, args.fold_mark, 
+        args.signature_size, args.aggregate_signatures
+    )
 
 
 def handle_pad(args: argparse.Namespace):

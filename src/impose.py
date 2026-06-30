@@ -1,5 +1,8 @@
 import sys
+from io import BytesIO
 
+import pdf2image
+from PIL import ImageDraw
 from pypdf import PageObject, PdfReader, PdfWriter
 from pathlib import Path
 
@@ -11,32 +14,34 @@ A4 = {                  # in points, where 72 points = 1 inch
 }
 
 
-def impose(input_path: Path, output_dir: Path, split_sides: bool, signature_size: int | None, aggregate_signatures: bool):
+def impose(input_path: Path, output_dir: Path, split_sides: bool, fold_mark: bool,
+           signature_size: int | None, aggregate_signatures: bool):
     reader = PdfReader(input_path)
     num_pages = len(reader.pages)
     validate_number_of_pages(num_pages, input_path, signature_size=signature_size)
 
     if signature_size is None:
-        impose_nosignatures(reader, output_dir, split_sides)
+        impose_nosignatures(reader, output_dir, split_sides, fold_mark)
     else:
-        impose_signatures(reader, output_dir, split_sides, signature_size, aggregate_signatures)
+        impose_signatures(reader, output_dir, split_sides, fold_mark, signature_size, aggregate_signatures)
 
 
-def impose_nosignatures(reader: PdfReader, output_dir: Path, split_sides: bool):
+def impose_nosignatures(reader: PdfReader, output_dir: Path, split_sides: bool, fold_mark: bool):
     num_pages = len(reader.pages)
     if not split_sides:
         output_path = output_dir / "aggregate.pdf"
-        impose_aggregate(reader, output_path, 1, num_pages)
+        impose_aggregate(reader, output_path, 1, num_pages, fold_mark)
         print(f"[*] Finished imposing PDF: {output_path}")
     else:
         output_path_back = output_dir / "aggregate_back.pdf"
         output_path_front = output_dir / "aggregate_front.pdf"
-        impose_split(reader, output_path_back, output_path_front, 1, num_pages)
+        impose_split(reader, output_path_back, output_path_front, 1, num_pages, fold_mark)
         print(f"[*] Finished imposing PDF (back): {output_path_back}")
         print(f"[*] Finished imposing PDF (front): {output_path_front}")
 
 
-def impose_signatures(reader: PdfReader, output_dir: Path, split_sides: bool, signature_size: int, aggregate_signatures: bool):
+def impose_signatures(reader: PdfReader, output_dir: Path, split_sides: bool, fold_mark: bool,
+                      signature_size: int, aggregate_signatures: bool):
     num_pages = len(reader.pages)
     pages_per_signature = PAGES_PER_SHEET * signature_size
     num_signatures = num_pages // pages_per_signature
@@ -48,12 +53,12 @@ def impose_signatures(reader: PdfReader, output_dir: Path, split_sides: bool, si
 
         if not split_sides:
             output_path = output_dir / f"signature_{signature_number}.pdf"
-            impose_aggregate(reader, output_path, first_page, last_page)
+            impose_aggregate(reader, output_path, first_page, last_page, fold_mark)
             print(f"[+] Finished imposing signature {signature_number}/{num_signatures}: {output_path}")
         else:
             output_path_back = output_dir / f"signature_{signature_number}_back.pdf"
             output_path_front = output_dir / f"signature_{signature_number}_front.pdf"
-            impose_split(reader, output_path_back, output_path_front, first_page, last_page)
+            impose_split(reader, output_path_back, output_path_front, first_page, last_page, fold_mark)
             print(f"[+] Finished imposing signature {signature_number}/{num_signatures} (back): {output_path_back}")
             print(f"[+] Finished imposing signature {signature_number}/{num_signatures} (front): {output_path_front}")
     
@@ -87,21 +92,22 @@ def impose_signatures(reader: PdfReader, output_dir: Path, split_sides: bool, si
         print(f"[*] Aggregated signatures into PDF (front): {output_path_front}")
         
 
-def impose_aggregate(reader: PdfReader, output_path: Path, first_page: int, last_page: int):
+def impose_aggregate(reader: PdfReader, output_path: Path, first_page: int, last_page: int, fold_mark: bool):
     writer = PdfWriter()
     total_num_leaves = len(reader.pages) // 2
     
     num_leaves_per_signature = (last_page - first_page) // 2
     for leaf_index in range(num_leaves_per_signature+1):
         leaf_number = (first_page // 2) + leaf_index + 1
-        leaf = impose_leaf(reader, leaf_index, first_page, last_page)
+        leaf = impose_leaf(reader, leaf_index, first_page, last_page, fold_mark)
         writer.add_page(leaf)
         print(f"[-] Imposed leaf {leaf_number}/{total_num_leaves}")
 
     writer.write(output_path)
 
 
-def impose_split(reader: PdfReader, output_path_back: Path, output_path_front: Path, first_page: int, last_page: int):
+def impose_split(reader: PdfReader, output_path_back: Path, output_path_front: Path, 
+                 first_page: int, last_page: int, fold_mark: bool):
     writer_back = PdfWriter()
     writer_front = PdfWriter()
     total_num_leaves = len(reader.pages) // 2
@@ -109,7 +115,7 @@ def impose_split(reader: PdfReader, output_path_back: Path, output_path_front: P
     num_leaves_per_signature = (last_page - first_page) // 2
     for leaf_index in range(num_leaves_per_signature+1):
         leaf_number = (first_page // 2) + leaf_index + 1
-        leaf = impose_leaf(reader, leaf_index, first_page, last_page)
+        leaf = impose_leaf(reader, leaf_index, first_page, last_page, fold_mark)
         if leaf_index % 2 == 0:
             writer_back.add_page(leaf)
         else:
@@ -120,7 +126,7 @@ def impose_split(reader: PdfReader, output_path_back: Path, output_path_front: P
     writer_front.write(output_path_front)
 
 
-def impose_leaf(reader: PdfReader, leaf_index: int, first_page, last_page) -> PageObject:
+def impose_leaf(reader: PdfReader, leaf_index: int, first_page: int, last_page: int, fold_mark: bool) -> PageObject:
     if leaf_index % 2 == 0:
         # back side
         leaf_page_indices = (last_page - leaf_index, first_page + leaf_index)
@@ -133,6 +139,12 @@ def impose_leaf(reader: PdfReader, leaf_index: int, first_page, last_page) -> Pa
 
     leaf = PageObject.create_blank_page(width=A4["width"], height=A4["height"])
 
+    # Put it before adding content so that leaf doesn't get pixelated
+    if fold_mark and leaf_index % 2 != 0:
+        leaf_bytes = get_page_bytes(leaf)
+        leaf_bytes = add_fold_mark(leaf_bytes)
+        leaf = get_page_from_bytes(leaf_bytes)
+
     leaf_left.rotate(90)
     leaf_left.scale_to(A4["height"]/2, A4["width"])
     leaf_left.transfer_rotation_to_content()
@@ -144,6 +156,35 @@ def impose_leaf(reader: PdfReader, leaf_index: int, first_page, last_page) -> Pa
     leaf.merge_page(leaf_right)
 
     return leaf
+
+
+def get_page_bytes(page: PageObject) -> bytes:
+    writer = PdfWriter()
+    output = BytesIO()
+
+    writer.add_page(page)
+    writer.write(output)
+    output.seek(0)
+
+    return output.getvalue()
+
+
+def add_fold_mark(page_bytes: bytes, dpi=72) -> bytes:
+    image = pdf2image.convert_from_bytes(page_bytes, dpi=dpi)[0]
+    draw = ImageDraw.Draw(image)
+
+    center_y_px = image.height // 2
+    draw.line([(0, center_y_px), (image.width, center_y_px)], fill="black", width=1)
+
+    output = BytesIO()
+    image.convert("RGB").save(output, format="PDF")
+    output.seek(0)
+    return output.getvalue()
+
+
+def get_page_from_bytes(page_bytes: bytes) -> PageObject:
+    reader = PdfReader(BytesIO(page_bytes))
+    return reader.pages[0]
 
 
 def validate_number_of_pages(num_pages: int, input_path: Path, signature_size: int | None = None):
