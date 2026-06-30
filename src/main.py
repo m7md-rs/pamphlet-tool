@@ -31,7 +31,7 @@ def main():
         dest="signature_size",
         type=int,
         default=None,
-        help="The number of sheets/booklets per signature (default: no signatures)"
+        help="The number of sheets/booklets per signature (Default: no signatures)"
     )
 
     impose.add_argument(
@@ -45,22 +45,22 @@ def main():
         "-k", "--split-sides",
         dest="split_sides",
         action="store_true",
-        help="Create a seperate PDF for the front & back side"
+        help="Create a seperate PDF for the front & back sides"
     )
 
     impose.add_argument(
         "-m", "--fold-mark",
         dest="fold_mark",
         action="store_true",
-        help="Add a fold mark to each leaf"
+        help="Add a fold mark to each sheet"
     )
 
     impose.add_argument(
         "-o", "--output",
         dest="output_dir",
         type=Path,
-        default="output",
-        help="Output directory for the new imposed PDFs. (Default: output)"
+        default="./output",
+        help="Output directory for the new imposed PDFs (Default: ./output)"
     )
 
     pad = subparsers.add_parser("pad", help="Insert blank padding pages to the end of a PDF") 
@@ -84,7 +84,7 @@ def main():
         "-y", "--yes",
         dest="skip_confirmation",
         action="store_true",
-        help="Skip the confirmation for overwriting the file"
+        help="Skip the confirmation for overwriting the input file"
     )
 
     pad.add_argument(
@@ -92,7 +92,7 @@ def main():
         dest="output_path",
         type=Path,
         default=None,
-        help="Output padded PDF to this path instead of overwriting"
+        help="Output padded PDF to this path instead of overwriting the input file"
     )
 
     args = parser.parse_args()
