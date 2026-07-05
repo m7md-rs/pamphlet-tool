@@ -4,7 +4,7 @@ import argparse
 from pypdf import PdfReader, PdfWriter
 from pathlib import Path
 
-from impose import impose
+from impose import impose, DrawOptions, OutputOptions, SignatureOptions
 from pad import pad
 
 
@@ -49,8 +49,8 @@ def main():
     )
 
     impose.add_argument(
-        "-m", "--fold-mark",
-        dest="fold_mark",
+        "--fold-marks",
+        dest="fold_marks",
         action="store_true",
         help="Add a fold mark to each sheet"
     )
@@ -102,11 +102,12 @@ def main():
 def handle_impose(args: argparse.Namespace):
     validate_input_file(args.input_path)
     args.output_dir.mkdir(exist_ok=True)
-    impose(
-        args.input_path, args.output_dir, 
-        args.split_sides, args.fold_mark, 
-        args.signature_size, args.aggregate_signatures
-    )
+
+    output_options = OutputOptions(args.output_dir, args.split_sides)
+    draw_options = DrawOptions(args.fold_marks)
+    signature_options = SignatureOptions(args.signature_size, args.aggregate_signatures)
+
+    impose(args.input_path, output_options, draw_options, signature_options)
 
 
 def handle_pad(args: argparse.Namespace):
