@@ -9,6 +9,14 @@ from pypdf import PageObject, PdfReader, PdfWriter
 from pathlib import Path
 
 
+STANDARD_PDF_DPI = 72
+PAGES_PER_SHEET = 4 # Folio
+A4 = {                  # in points, where 72 points = 1 inch
+    "width":  595.276,  # 210 mm
+    "height": 841.890,  # 297 mm
+}
+
+
 @dataclass
 class OutputOptions:
     output_dir: Path
@@ -18,9 +26,13 @@ class OutputOptions:
 @dataclass
 class DrawOptions:
     fold_marks: bool
+    hole_count: Optional[int]
 
     def any(self):
-        return self.fold_marks # or self.foo or self.bar
+        return self.fold_marks or self.hole_count 
+
+    def use_hole_marks(self) -> bool:
+        return self.hole_count is not None
 
 
 @dataclass
@@ -36,12 +48,40 @@ class SignatureOptions:
         return size * PAGES_PER_SHEET
 
 
-STANDARD_PDF_DPI = 72
-PAGES_PER_SHEET = 4 # Folio
-A4 = {                  # in points, where 72 points = 1 inch
-    "width":  595.276,  # 210 mm
-    "height": 841.890,  # 297 mm
-}
+class PageImage:
+    def __init__(self, page: PageObject, dpi=STANDARD_PDF_DPI):
+        writer = PdfWriter()
+        output = BytesIO()
+
+        writer.add_page(page)
+        writer.write(output)
+        output.seek(0)
+
+        page_bytes = output.getvalue()
+
+        self.image = pdf2image.convert_from_bytes(page_bytes, dpi=dpi)[0]
+        self.draw = ImageDraw.Draw(self.image)
+
+    # SAFETY: Object is invalid after this call
+    def to_page(self) -> PageObject:
+        output = BytesIO()
+        self.image.convert("RGB").save(output, format="PDF")
+        output.seek(0)
+        page_bytes = output.getvalue()
+
+        reader = PdfReader(BytesIO(page_bytes))
+        return reader.pages[0]
+
+    def add_fold_mark(self):
+        center_y_px = self.image.height // 2
+        self.draw.line([(0, center_y_px), (self.image.width, center_y_px)], fill="black", width=1)
+
+    def add_hole_marks(self, hole_count: int):
+        center_y_px = self.image.height // 2
+        hole_spacing_px = self.image.width // (hole_count + 1)
+        for hole_number in range(1, hole_count+1):
+            center = (hole_number * hole_spacing_px, center_y_px)
+            self.draw.circle(center, radius=4, fill="black", width=1)
 
 
 def impose(input_path: Path, output_options: OutputOptions, 
@@ -170,12 +210,14 @@ def impose_leaf(reader: PdfReader, leaf_index: int, first_page: int, last_page: 
 
     leaf = PageObject.create_blank_page(width=A4["width"], height=A4["height"])
 
-    # Draw all aid markings before adding content so that leaf doesn't get pixelated
-    if draw_options.any() and leaf_index % 2 != 0:
-        leaf_bytes = get_page_bytes(leaf)
+    if draw_options.any():
+        page_image = PageImage(leaf)
         if draw_options.fold_marks and is_front_leaf(leaf_index):
-            leaf_bytes = add_fold_mark(leaf_bytes)
-        leaf = get_page_from_bytes(leaf_bytes)
+            page_image.add_fold_mark()
+        if draw_options.use_hole_marks() and is_front_leaf(leaf_index):
+            assert draw_options.hole_count is not None
+            page_image.add_hole_marks(draw_options.hole_count)
+        leaf = page_image.to_page()
 
     leaf_left.rotate(90)
     leaf_left.scale_to(A4["height"]/2, A4["width"])
@@ -188,35 +230,6 @@ def impose_leaf(reader: PdfReader, leaf_index: int, first_page: int, last_page: 
     leaf.merge_page(leaf_right)
 
     return leaf
-
-
-def get_page_bytes(page: PageObject) -> bytes:
-    writer = PdfWriter()
-    output = BytesIO()
-
-    writer.add_page(page)
-    writer.write(output)
-    output.seek(0)
-
-    return output.getvalue()
-
-
-def get_page_from_bytes(page_bytes: bytes) -> PageObject:
-    reader = PdfReader(BytesIO(page_bytes))
-    return reader.pages[0]
-
-
-def add_fold_mark(page_bytes: bytes, dpi=STANDARD_PDF_DPI) -> bytes:
-    image = pdf2image.convert_from_bytes(page_bytes, dpi=dpi)[0]
-    draw = ImageDraw.Draw(image)
-
-    center_y_px = image.height // 2
-    draw.line([(0, center_y_px), (image.width, center_y_px)], fill="black", width=1)
-
-    output = BytesIO()
-    image.convert("RGB").save(output, format="PDF")
-    output.seek(0)
-    return output.getvalue()
 
 
 def validate_number_of_pages(num_pages: int, input_path: Path, pages_per_signature: int = PAGES_PER_SHEET):

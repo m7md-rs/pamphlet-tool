@@ -52,7 +52,16 @@ def main():
         "--fold-marks",
         dest="fold_marks",
         action="store_true",
-        help="Add a fold mark to each sheet"
+        help="Add a fold mark to the inner-side of each sheet"
+    )
+
+    impose.add_argument(
+        "--hole-marks",
+        dest="hole_count",
+        metavar="COUNT",
+        type=int,
+        default=None,
+        help="Add COUNT evenly-spaced hole marks to the inner-side of each sheet"
     )
 
     impose.add_argument(
@@ -104,7 +113,7 @@ def handle_impose(args: argparse.Namespace):
     args.output_dir.mkdir(exist_ok=True)
 
     output_options = OutputOptions(args.output_dir, args.split_sides)
-    draw_options = DrawOptions(args.fold_marks)
+    draw_options = DrawOptions(args.fold_marks, args.hole_count)
     signature_options = SignatureOptions(args.signature_size, args.aggregate_signatures)
 
     impose(args.input_path, output_options, draw_options, signature_options)
