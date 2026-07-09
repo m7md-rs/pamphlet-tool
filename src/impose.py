@@ -29,7 +29,7 @@ class DrawOptions:
     hole_count: Optional[int]
 
     def any(self):
-        return self.fold_marks or self.hole_count 
+        return self.fold_marks or self.use_hole_marks()
 
     def use_hole_marks(self) -> bool:
         return self.hole_count is not None
@@ -157,7 +157,7 @@ def impose_signatures(reader: PdfReader, output_options: OutputOptions,
         output_path_back = output_options.output_dir / "aggregate_back.pdf"
         output_path_front = output_options.output_dir / "aggregate_front.pdf"
         writer_back.write(output_path_back)
-        writer_back.write(output_path_front)
+        writer_front.write(output_path_front)
         print(f"[*] Aggregated signatures into PDF (back): {output_path_back}")
         print(f"[*] Aggregated signatures into PDF (front): {output_path_front}")
         
