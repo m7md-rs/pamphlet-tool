@@ -15,6 +15,7 @@ A4 = {                  # in points, where 72 points = 1 inch
     "width":  595.276,  # 210 mm
     "height": 841.890,  # 297 mm
 }
+GUTTER_MARGIN = 28.35 # 10 mm on each side
 
 
 @dataclass
@@ -220,12 +221,12 @@ def impose_leaf(reader: PdfReader, leaf_index: int, first_page: int, last_page: 
         leaf = page_image.to_page()
 
     leaf_left.rotate(90)
-    leaf_left.scale_to(A4["height"]/2, A4["width"])
+    leaf_left.scale_to(A4["height"]/2 - GUTTER_MARGIN, A4["width"])
     leaf_left.transfer_rotation_to_content()
-    leaf.merge_translated_page(leaf_left, ty=A4["height"]/2, tx=0)
+    leaf.merge_translated_page(leaf_left, ty=A4["height"]/2 + GUTTER_MARGIN, tx=0)
 
     leaf_right.rotate(90)
-    leaf_right.scale_to(A4["height"]/2, A4["width"])
+    leaf_right.scale_to(A4["height"]/2 - GUTTER_MARGIN, A4["width"])
     leaf_right.transfer_rotation_to_content()
     leaf.merge_page(leaf_right)
 
