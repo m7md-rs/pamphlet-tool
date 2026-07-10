@@ -6,6 +6,7 @@ from pathlib import Path
 
 from impose import impose, DrawOptions, OutputOptions, SignatureOptions
 from pad import pad
+from calculate_cover_size import calculate_cover_size
 
 
 def main():
@@ -104,6 +105,16 @@ def main():
         help="Output padded PDF to this path instead of overwriting the input file"
     )
 
+    calculate_cover_size = subparsers.add_parser("calculate-cover-size", help="Calculate the required dimensions for a cover")
+    calculate_cover_size.set_defaults(func=handle_calculate_cover_size)
+
+    calculate_cover_size.add_argument(
+        "input_path",
+        metavar="input",
+        type=Path,
+        help="Path for an input file to calculate the required cover size for"
+    )
+
     args = parser.parse_args()
     args.func(args)
 
@@ -132,6 +143,11 @@ def handle_pad(args: argparse.Namespace):
         pad(args.input_path, args.needed_padding, args.input_path)
     else:
         pad(args.input_path, args.needed_padding, args.output_path)
+
+
+def handle_calculate_cover_size(args: argparse.Namespace):
+    validate_input_file(args.input_path)
+    calculate_cover_size(args.input_path)
 
 
 def validate_input_file(input_path: Path):
