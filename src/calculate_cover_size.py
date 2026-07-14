@@ -21,19 +21,22 @@ A4 = { # in mm
     "thickness": 0.1, # Standard 80 gsm A4 paper
 }
 
-def calculate_cover_size(input_path: Path):
+def calculate_cover_size(input_path: Path, buffer: float):
     reader = PdfReader(input_path)
     num_pages = len(reader.pages)
     num_sheets = num_pages // 2
 
     side = Area(width=A4["height"] / 2, height=A4["width"])
 
-    spine_thickness = num_sheets * A4["thickness"]
-    spine = Area(spine_thickness, side.height)
+    min_spine_thickness = num_sheets * A4["thickness"] 
+    spine_thickness = min_spine_thickness * (1 + buffer/100)
+    spine = Area(spine_thickness, A4["width"])
     
     assert side.height == spine.height
     total = Area(2*side.width + spine.width, side.height)
 
+    print(f"[-] Minimum spine thickness: {min_spine_thickness:.1f}mm")
+    print(f"[-] Spine thickness with buffer ({buffer}%): {spine_thickness:.1f}mm")
     print(f"[+] Side area: {side}")
     print(f"[+] Spine area: {spine}")
     print(f"[*] Total area: {total}")

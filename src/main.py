@@ -115,6 +115,14 @@ def main():
         help="Path for an input file to calculate the required cover size for"
     )
 
+    calculate_cover_size.add_argument(
+        "-b", "--buffer",
+        dest="buffer",
+        type=float,
+        default=20,
+        help="A percentage value to add as a buffer for the spine's thickness (default: 20 percent)",
+    )
+
     args = parser.parse_args()
     args.func(args)
 
@@ -147,7 +155,7 @@ def handle_pad(args: argparse.Namespace):
 
 def handle_calculate_cover_size(args: argparse.Namespace):
     validate_input_file(args.input_path)
-    calculate_cover_size(args.input_path)
+    calculate_cover_size(args.input_path, buffer=args.buffer)
 
 
 def validate_input_file(input_path: Path):
